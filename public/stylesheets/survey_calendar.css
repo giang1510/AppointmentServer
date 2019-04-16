@@ -1,0 +1,139 @@
+#surv_content{
+    margin: auto;
+    width: 60%;
+    height: 500px;
+
+}
+
+#surv_content > div {
+    height: 100%;
+}
+
+
+#surv_cal{
+    display: inline-block;
+    border: solid 1px red;
+    width: 48%;
+    min-width: 300px;
+}
+
+.right_sel{
+    display: inline-block;
+    border: solid 1px green;
+    margin-left: 2px;
+    width: 48%;
+    min-width: 300px;
+    min-height: 100%;
+}
+
+.right_sel input{
+    width: 6.5em;
+}
+
+#start_end div, #recur_start_end div{
+    text-align: center;
+    margin-bottom: 2px;
+    padding: 1px;
+}
+
+.date-label{
+    background: #1abc9c;
+    color: white;
+}
+
+/*Alignment-Classes*/
+
+.vertical-center {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+/*Calendar Navigation*/
+.month {
+    padding: 70px 25px;
+    width: 100%;
+    background: #1abc9c;
+    text-align: center;
+}
+
+.month ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+.month ul li {
+    color: white;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.month .prev:hover, .month .next:hover{
+    cursor: pointer;
+}
+
+.month .prev {
+    float: left;
+    padding-top: 10px;
+}
+
+.month .next {
+    float: right;
+    padding-top: 10px;
+}
+
+
+/*Table*/
+
+/*Day Selection*/
+.sel_day:hover, #todayLink:hover {
+    background: gray;
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 5px;
+    text-decoration: none;
+}
+#todayLink{
+    border: solid 1px green;
+}
+.selected-day, #todayLink a.selected-day{
+    background: blue;
+    color: white;
+    border-radius: 50%;
+    padding: 5px;
+}
+.past_day:hover{
+    text-decoration: none;
+    cursor: not-allowed;
+}
+.past_day{
+    color: gray;
+}
+
+
+
+
+#surv_cal table{
+    table-layout: fixed;
+}
+
+#surv_cal table th,#surv_cal table td{
+    width: auto;
+}
+
+/*for recurring appointment*/
+#start_cal{
+    border: solid 1px red;
+    width: 49%;
+    min-width: 300px;
+}
+
+#end_cal{
+    border: solid 1px red;
+    margin-left: 2px;
+    width: 49%;
+    min-width: 300px;
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html ng-app>
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css'/>
+    <style type="text/css" media="screen">
+        .center-obj {
+            padding: 5px 30% 10px 30%;
+        }
+        h1 {
+            margin-bottom: 50px;
+        }
+    </style>
+</head>
+<body>
+<% include templates/header.ejs %>
+<div class="text-center">
+    <h1>Welcome to <%= title %></h1>
+
+    <form action="/search_machine" method="get" class="form-horizontal">
+        <div class="center-obj">
+            <input type="text" name="search" placeholder="Please enter provider's name to search" class="form-control">
+        </div>
+
+        <input type="submit" value="Search" class="btn btn-default">
+    </form>
+</div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+</body>
+</html>

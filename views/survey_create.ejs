@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+<head>
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css'/>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <link rel='stylesheet' href='/stylesheets/survey_calendar.css'/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="/jquery_timepicker/jquery.timepicker.js"></script>
+    <link rel="stylesheet" type="text/css" href="/jquery_timepicker/jquery.timepicker.css"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+</head>
+
+
+<body>
+<% include templates/header.ejs %>
+<h2 style="text-align: center">Create Survey</h2>
+<br>
+<div id="surv_content" ng-controller="myCtrl">
+    <div ng-show="vis_content === 'add_desc' ">
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" class="form-control" ng-model="title" placeholder="Enter Title">
+        </div>
+        <div class="form-group">
+            <label>Location</label>
+            <input type="text" class="form-control" ng-model="location" placeholder="Add Location">
+        </div>
+        <div class="form-group">
+            <label>Note</label>
+            <input type="text" class="form-control" placeholder="Add Note" ng-model="note">
+        </div>
+        <div class="form-group">
+            <label>Recurring appointment</label>
+            <input id="recur_cb" type="checkbox" style="margin-left: 5px" ng-model="recurring">
+        </div>
+        <button onclick="drawCalendars()" ng-click="vis_content = 'add_time' " ng-disabled="!title.length">Next</button>
+
+    </div>
+    <div ng-show="vis_content === 'add_time' " >
+        <div ng-show="!recurring" class="full-width flex-container">
+            <div id="surv_cal" class="table-responsive"></div>
+            <div id="surv_time" class="right_sel">
+                <div class="vertical-center" ng-show="time_content === 'start'">
+                    <p class="center-block">Please choose a day</p>
+                </div>
+                <div class="vertical-center" ng-show="time_content === 'day_chosen'">
+                    <button class="center-block" onclick="addTimeClicked()" ng-click="time_content = 'start_end'">Add Time
+                    </button>
+                </div>
+                <div class="center-block" ng-show="time_content === 'start_end'" id="start_end">
+                    <div id="time_picker"></div>
+                    <button ng-show="time_count" class="center-block"> 1">Add more time</button>
+                </div>
+            </div>
+        </div>
+        <div ng-show="recurring" class="full-width flex-container">
+            <div id="start_cal" class="table-responsive"></div>
+            <div id="weekday_sel_time" class="right_sel">
+                <div class="vertical-center" ng-show="recur_time_content === 'start'">
+                    <p class="center-block">Please choose a start day and an end day!</p>
+                </div>
+                <div class="center-block" ng-show="recur_time_content === 'recur_start_end'" id="recur_start_end">
+                    <div id="time_picker"></div>
+                    <button ng-show="time_count" class="center-block"> 1">Add more time</button>
+                </div>
+            </div>
+        </div>
+
+        <button ng-click="vis_content = 'add_desc'">Back</button>
+        <button ng-click="vis_content = 'add_email'">Next</button>
+    </div>
+    <div ng-show="vis_content === 'add_email'">
+        <div class="form-group">
+            <label>Name</label>
+            <input type="text" class="form-control" placeholder="Enter Name" ng-model="admin_name">
+        </div>
+        <div class="form-group">
+            <label>E-Mail</label>
+            <input type="email" class="form-control" placeholder="Enter E-Mail" ng-model="admin_email">
+        </div>
+        <button ng-click="vis_content = 'add_time'">Back</button>
+        <button ng-click="sendData()" ng-disabled="!(admin_email.length && admin_name.length)">Finish</button>
+    </div>
+
+</div>
+
+
+
+
+<script>
+    //Init
+    var cur_day = new Date();
+    var sel_days_map = new Map();
+    var sel_weekdays_map = new Map();
+    var recur_start = null;
+    var recur_end = null;
+    var i_start_ele = null;
+    var i_end_ele = null;
+    var recur_cb = document.getElementById('recur_cb');
+
+
+    function drawCalendars() {
+        if(recur_cb.checked){
+            makeCalendar('start_cal');
+        }else{
+            makeCalendar('surv_cal');
+        }
+    }
+
+    //Funtions for calendar
+    function isEmptyOrSpaces(str) {
+        return str === null || str.match(/^ *$/) !== null;
+    }
+
+    function isToday(date) {
+        var today = new Date();
+        if (date.getYear() == today.getYear()
+            && date.getMonth() == today.getMonth()
+            && date.getDate() == today.getDate()) {
+            return true;
+        }
+        return false;
+    }
+
+    function createEleStr(tag, text, options) {
+        return '<' + tag + ' ' + options + '>' + text + '</' + tag + '>';
+    }
+
+
+    function leapYear(year) {
+        return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+    }
+
+    function dayToIndex(date) {
+        var weekDay = date.getDay();
+        if (weekDay == 0) {
+            return 6;
+        } else {
+            return weekDay - 1;
+        }
+    }
+
+    function getDaysInMonth(date) {
+        var daysInMoth = 0;
+        switch (date.getMonth() + 1) {
+            case 1:
+            case 3:
+            case 5:
+            case 7:
+            case 8:
+            case 10:
+            case 12: {
+                daysInMoth = 31;
+                break;
+            }
+            case 4:
+            case 6:
+            case 9:
+            case 11: {
+                daysInMoth = 30;
+                break;
+            }
+            case 2: {
+                if (leapYear(date.getYear())) {
+                    daysInMoth = 29;
+                } else {
+                    daysInMoth = 28;
+                }
+                break;
+            }
+            default: {
+                daysInMoth = -1;
+                break;
+            }
+        }
+        return daysInMoth;
+    }
+
+    function isPast(date) {
+        var today = new Date();
+        if (date.getTime() < today.getTime()) {
+            if (isToday(date)) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function makeCalendar(id) {
+        //Get HTML-Element to draw
+        var cal_div = document.getElementById(id);
+        //Reset content
+        cal_div.innerHTML = '';
+
+        //Create calendar navigation
+        var nav_content = '';
+        var month_names = ["January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        var uListContent = '';
+        var prev_btn = createEleStr('li', '&#10094;', 'class="prev" onClick = "prevClicked()"');
+        var next_btn = createEleStr('li', '&#10095;', 'class="next" onClick = "nextClicked()"');
+        var month_content = createEleStr('li', month_names[cur_day.getMonth()] + ' '
+            + cur_day.getFullYear(), '');
+        uListContent = prev_btn + next_btn + month_content;
+        var uList = createEleStr('ul', uListContent, '');
+        nav_content = createEleStr('div', uList, 'class = "month"');
+        cal_div.innerHTML += nav_content;
+
+        //Create calendar-table
+        var table_content = '';
+
+        //Weekday header
+        var thStr = '';
+        var week_days = ['Mo', 'Tue', 'Wed', 'Thu', 'Fr', 'Sat', 'Sun'];
+        for (var i = 0; i < 7; i++) {
+            thStr += createEleStr('th', week_days[i], '');
+
+        }
+        table_content += createEleStr('tr', thStr, '');
+
+        //Create days in calendar
+        var month_day_count = getDaysInMonth(cur_day);
+        var proc_day = new Date(cur_day);
+        var proc_month = proc_day.getMonth();
+        proc_day.setDate(1);
+        for (var j = 0; j < month_day_count;) {
+            var tdStr = '';
+            for (var i = 0; i < 7; i++) {
+                if (dayToIndex(proc_day) == i && proc_day.getMonth() == proc_month) {
+                    var dayOpt = '';
+                    if (isToday(proc_day)) {
+                        dayOpt += 'id = "todayLink" ';
+                    }
+                    if (!isPast(proc_day)) {
+                        if(id == 'surv_cal'){
+                            dayOpt += 'onClick = "dayClicked(this)" ';
+                        }else{
+                            dayOpt += 'onClick = "dayClickedRecur(this)" ';
+                        }
+                        dayOpt += 'class = "sel_day" ';
+                    } else {
+                        dayOpt += 'class = "past_day" ';
+                    }
+                    dayOpt += 'name = "day_links" ';
+
+                    tdStr += createEleStr('td', createEleStr('a', proc_day.getDate(), dayOpt), '');
+                    proc_day.setDate(proc_day.getDate() + 1);
+                    j++;
+                } else {
+                    tdStr += createEleStr('td', '&nbsp;', '');
+                }
+            }
+            table_content += createEleStr('tr', tdStr, '');
+        }
+
+
+        var tbStr = createEleStr('table', table_content, 'class = "table table-bordered"');
+        cal_div.innerHTML += tbStr;
+        showSelDays();
+    }
+
+    //Add-Time Area
+    function showAddBtn() {
+        var $scope = angular.element(document.getElementById('surv_time')).scope();
+        $scope.$apply(function () {
+            $scope.time_content = 'day_chosen';
+        });
+    }
+
+    function addTimeClicked() {
+        sel_days_map.forEach(function (value, key) {
+            addDayDiv(key);
+        });
+        initTimePickers();
+        var $scope = angular.element(document.getElementById('surv_time')).scope();
+        $scope.$apply(function () {
+            $scope.add_time_clicked = true;
+        });
+    }
+
+    function initTimePickers() {
+        //Initialize all time pickers
+        var options = {
+            'scrollDefault': 'now',
+            timeFormat: 'H:i'
+        };
+        $(document).ready(function () {
+            $('input.time').timepicker(options);
+        });
+    }
+
+    function resetAddTimeArea() {
+        console.log('Enter reset');
+        if(recur_cb.checked){
+            var $scope = angular.element(document.getElementById('weekday_sel_time')).scope();
+            $scope.$apply(function () {
+                $scope.recur_time_content = 'start';
+            });
+            document.getElementById('recur_start_end').innerHTML = '';
+        }else{
+            var $scope = angular.element(document.getElementById('surv_time')).scope();
+            $scope.$apply(function () {
+                $scope.time_content = 'start';
+                $scope.add_time_clicked = false;
+            });
+            document.getElementById('start_end').innerHTML = '';
+        }
+
+    }
+
+
+    //Functions in HTML
+    function dayClicked(element) {
+        var sel_day_txt = element.innerText;
+        var sel_day_name = 'selected-day';
+        var class_list = element.classList;
+        if (class_list) {//check if classlist is supported
+            if (class_list.contains(sel_day_name)) {
+                class_list.remove(sel_day_name); //remove class
+                removeSelDayFromList(sel_day_txt);
+            } else {
+                class_list.add("selected-day");//add the class
+                addSelDaytoList(sel_day_txt);
+            }
+        } else {
+            var day_class = element.class;
+            if (isEmptyOrSpaces(day_class)) {
+                day_class += " selected-day";
+                addSelDaytoList(sel_day_txt);
+            } else {
+                day_class = "";
+                removeSelDayFromList(sel_day_txt);
+            }
+        }
+        console.log(sel_days_map);
+        var add_time_clicked = angular.element(document.getElementById('surv_time')).scope().add_time_clicked;
+        if (sel_days_map.size == 1 && !add_time_clicked) {
+            console.log(add_time_clicked);
+            showAddBtn();
+
+        } else if (sel_days_map.size < 1) {
+            console.log('Reset now');
+            resetAddTimeArea();
+        }
+    }
+
+    function dayClickedRecur(element) {
+        var sel_day_txt = element.innerText;
+        var sel_day_name = 'selected-day';
+        var class_list = element.classList;
+        if (class_list) {//check if classlist is supported
+            if (class_list.contains(sel_day_name)) {
+                class_list.remove(sel_day_name); //remove class
+                removeSelDayFromInterval(element);
+            } else {
+                class_list.add("selected-day");//add the class
+                addSelDayToInterval(element);
+            }
+        } else {
+            var day_class = element.class;
+            if (isEmptyOrSpaces(day_class)) {
+                day_class += " selected-day";
+                addSelDayToInterval(element);
+            } else {
+                day_class = "";
+                removeSelDayFromInterval(element);
+            }
+        }
+
+
+        if(!(recur_start && recur_end)){
+            resetAddTimeArea();
+        }
+    }
+
+    function removeOldRecurSel(element) {
+        var sel_day_name = 'selected-day';
+        var class_list = element.classList;
+        if (class_list) {//check if classlist is supported
+            if (class_list.contains(sel_day_name)) {
+                class_list.remove(sel_day_name); //remove class
+            }
+        } else {
+            var day_class = element.class;
+            if (!isEmptyOrSpaces(day_class)) {
+                day_class = "";
+            }
+        }
+    }
+
+    function dayStrToKey(day) {
+        return day + '-' + cur_day.getMonth() + '-' + cur_day.getFullYear();
+    }
+
+    function dayStrToDate(day) {
+        var date = new Date(cur_day.getFullYear(),cur_day.getMonth(),parseInt(day));
+        return date;
+    }
+
+    function addSelDaytoList(day) {
+        var key = dayStrToKey(day);
+        sel_days_map.set(key, []);
+
+        var add_time_clicked = angular.element(document.getElementById('surv_time')).scope().add_time_clicked;
+        if(add_time_clicked){
+            console.log('Add div in clicked');
+            addDayDiv(key);
+            initTimePickers();
+        }
+    }
+
+    function addSelDayToInterval(ele) {
+        var sel_date = dayStrToDate(ele.innerText);
+        if(!recur_start){
+            recur_start = sel_date;
+            i_start_ele = ele;
+        }else {
+            if(!recur_end){
+                if(sel_date.getTime() < recur_start.getTime()){
+                    console.log('Sel date');
+                    console.log(sel_date);
+                    recur_end = new Date(recur_start);
+                    console.log('Recur end');
+                    console.log(recur_end);
+                    i_end_ele = i_start_ele;
+                    recur_start = sel_date;
+                    i_start_ele = ele;
+                }else{
+                    recur_end = sel_date;
+                    i_end_ele = ele;
+                }
+
+            }else {
+                if(sel_date.getTime() < recur_start.getTime()){
+                    removeOldRecurSel(i_start_ele);
+                    i_start_ele = ele;
+                    recur_start = sel_date;
+                }else {
+                    removeOldRecurSel(i_end_ele);
+                    i_end_ele = ele;
+                    recur_end = sel_date;
+                }
+            }
+            console.log('Before add weekdays');
+            showWeekdaysAddTime();
+            addWeekDays(recur_start, recur_end);
+            initTimePickers();
+            console.log('After add weekdays');
+            console.log(recur_start);
+            console.log('Recur end');
+            console.log(recur_end);
+        }
+    }
+
+    function showWeekdaysAddTime() {
+        var $scope = angular.element(document.getElementById('weekday_sel_time')).scope();
+        $scope.$apply(function () {
+            $scope.recur_time_content = 'recur_start_end';
+        });
+    }
+
+    function addDayDiv(key) {
+        var date_arr = key.split('-');
+        var month = parseInt(date_arr[1]) + 1;
+        var date = date_arr[0]+'.'+month+'.'+date_arr[2];
+        var day_text = createEleStr('div', date, 'class = "date-label"');
+        var day_times = createEleStr('div', '', 'class = "day_times"')
+        var addMoreTimesBtn = createEleStr('button', 'Add more times', 'onClick = "addMoreTimesClicked(this)"' +
+            ' style = "display: none;"');
+        var day_div = document.createElement('div');
+        day_div.id = key;
+        day_div.innerHTML = day_text + day_times + addMoreTimesBtn;
+        document.getElementById('start_end').appendChild(day_div);
+        addTimePicker(key);
+    }
+
+    function addWeekDays(start_date, end_date) {
+        //Clear weekdays-div
+        document.getElementById('recur_start_end').innerHTML = '';
+        //Clear weekdays-map
+        sel_weekdays_map.clear();
+
+        var day_count = 0;
+        if(start_date.getMonth() == end_date.getMonth()){
+            day_count = end_date.getDate() - start_date.getDate() +1;
+        }else{
+            day_count = daysInMonth(start_date.getMonth()) - start_date.getDate() + 1 + end_date.getDate();
+        }
+
+        if(day_count < 7){
+            for(var i = 0; i < day_count; i++){
+                var cur_sel_date = new Date(start_date);
+                cur_sel_date.setDate(cur_sel_date.getDate()+i);
+                var index = dayToIndex(cur_sel_date);
+                addWeekDayDiv(index);
+                sel_weekdays_map.set(index, []);
+            }
+        }else{
+            for(var i = 0; i < 7; i++){
+                addWeekDayDiv(i);
+            }
+        }
+    }
+
+    function daysInMonth (month, year) {
+        return new Date(year, month, 0).getDate();
+    }
+
+    function addWeekDayDiv(weekday_index) {
+        console.log('Add WD div entered '+weekday_index);
+        var weekdays_arr = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+        var dayStr = weekdays_arr[weekday_index];
+        var day_text = createEleStr('div', dayStr, 'class = "date-label"');
+        var day_times = createEleStr('div', '', 'class = "day_times"')
+        var addMoreTimesBtn = createEleStr('button', 'Add more times', 'onClick = "addMoreTimesClicked(this)"' +
+            ' style = "display: none;"');
+        var day_div = document.createElement('div');
+        day_div.id = weekday_index;
+        day_div.innerHTML = day_text + day_times + addMoreTimesBtn;
+        document.getElementById('recur_start_end').appendChild(day_div);
+        addTimePicker(weekday_index);
+    }
+
+    function removeSelDayFromList(day) {
+        var key = dayStrToKey(day);
+        sel_days_map.delete(key);
+        removeDayDiv(key);
+    }
+
+    function removeSelDayFromInterval(ele) {
+        var sel_date = dayStrToDate(ele.innerText);
+        if(sel_date.getDate() == recur_start.getDate()){
+            if(recur_end){
+                recur_start = recur_end;
+                i_start_ele = i_end_ele;
+                console.log(recur_start);
+                recur_end = null;
+                i_end_ele = null;
+                console.log(recur_start);
+            }else{
+                recur_start = null;
+                i_start_ele = null;
+            }
+        }else {
+            recur_end = null;
+            i_end_ele = null;
+        }
+    }
+
+    function removeDayDiv(key) {
+        $(document).ready(function () {
+            $("#"+key).remove();
+        });
+    }
+
+    function showSelDays() {
+        var day_links = document.getElementsByName('day_links');
+        var start = day_links.length
+        var monthStr = cur_day.getYear() + '-' + cur_day.getMonth();
+        for (var i = 1; i <= day_links.length; i++) {
+            if(sel_days_map.size > 0){
+                var key = monthStr + '-' + i;
+                if (sel_days_map.has(key)) {
+                    drawSelDay(i, day_links);
+                }
+            } else if(recur_start || recur_end){
+                if(isSelDay(recur_start,i)){
+                    drawSelDay(i, day_links);
+                }
+                if(isSelDay(recur_end,i)){
+                    drawSelDay(i, day_links);
+                }
+            }
+
+        }
+    }
+
+    function drawSelDay(index, day_links) {
+        var ele = day_links[index - 1];
+        if (ele.classList) {
+            ele.classList.add("selected-day")
+        } else {
+            ele.class += " selected-day";
+        }
+    }
+
+    function isSelDay(day, index) {
+        if(day){
+            if(day.getMonth() == cur_day.getMonth() &&
+                day.getYear() == cur_day.getYear() &&
+                day.getDate() == index){
+                return true;
+            }
+        }
+        return false;
+
+    }
+
+
+    function prevClicked() {
+        cur_day.setMonth(cur_day.getMonth() - 1);
+        drawCalendars();
+    }
+
+    function nextClicked() {
+        cur_day.setMonth(cur_day.getMonth() + 1);
+        drawCalendars();
+    }
+
+    function addTimePicker(key) {
+        var start_picker = createEleStr('input', '', 'type = "text"' +
+            ' class = "time start_time"' +
+            ' placeholder = "Start"');
+        var end_picker = createEleStr('input', '', 'type = "text"' +
+            ' class = "time end_time"' +
+            ' placeholder = "End"' +
+            ' disabled');
+        var centerContainer = document.createElement('div');
+        centerContainer.innerHTML = start_picker + ' - ' + end_picker;
+        var day_times_field = document.getElementById(key).getElementsByClassName('day_times')[0];
+        day_times_field.appendChild(centerContainer);
+        attachEvTimePicker(key, day_times_field.childNodes.length-1);
+    }
+
+    function attachEvTimePicker(key, index) {
+        $(document).ready(function () {
+            //After enter start time
+            $('#' + key + ' input.start_time').on('changeTime', function () {
+                console.log('enter change time start');
+
+                var val = $(this).val();
+                var end_picker = document.getElementById(key).getElementsByClassName('end_time')[index];
+                if (val.length > 0) {
+                    console.log(end_picker);
+                    end_picker.disabled = false;
+                } else {
+                    end_picker.disabled = true;
+                    end_picker.value = end_picker.placeholder;
+                }
+
+            });
+
+            //After both times added
+            $('#' + key + ' input.end_time').on('changeTime', function () {
+                console.log('enter change time end');
+                var end_val = $(this).val();
+                var start_val = document.getElementById(key).getElementsByClassName('start_time')[index].value;
+                var day_div = document.getElementById(key);
+                var end_picker = day_div.getElementsByClassName('end_time')[index];
+                if (end_val.length > 0) {
+                    var start = produceDate(key, start_val);
+                    var end = produceDate(key, end_val);
+                    console.log('Before output start!!');
+                    console.log(end);
+                    var time = {
+                        start_date: start,
+                        end_date: end
+                    };
+                    if(typeof key !== 'number'){
+                        sel_days_map.get(key).push(time);
+                    }else {
+                        sel_weekdays_map.get(key).push(time);
+                        console.log('Added to weekdays map!!');
+                    }
+                    console.log('After add times to map');
+
+                    day_div.getElementsByTagName('button')[0].style.display = 'inline-block';
+                } else {
+                    end_picker.disabled = true;
+                    end_picker.value = end_picker.placeholder;
+                }
+
+            });
+        });
+    }
+
+    function addMoreTimesClicked(ele) {
+        var day_div = ele.parentElement;
+        var id = day_div.id;
+        if(typeof day_div.id == 'string'){
+            if(day_div.id.indexOf('-') < 0){
+                id = parseInt(day_div.id);
+            }
+        }
+        addTimePicker(id);
+        initTimePickers();
+        //Hide add button
+        day_div.getElementsByTagName('button')[0].style.display = 'none';
+    }
+
+    function produceDate(key, timeStr) {
+        var day_arr = [];
+        console.log(typeof key);
+        //Check for recurring
+        if(typeof key !== 'number'){
+            day_arr = key.split('-');
+        } else{
+            console.log('Enter else');
+            day_arr = [recur_start.getDate().toString(),
+            recur_start.getMonth().toString(), recur_start.getFullYear().toString()];
+        }
+
+        var day = parseInt(day_arr[0]);
+        var month = parseInt(day_arr[1]);
+        var year = parseInt(day_arr[2]);
+
+        var time_arr = timeStr.split(':');
+        var hour = parseInt(time_arr[0]);
+        var min = parseInt(time_arr[1]);
+        console.log(year+' '+month+' '+day+' '+hour+' '+min);
+        console.log('Before return');
+        return new Date(year, month, day, hour, min, 0);
+    }
+</script>
+<script>
+    function keyToDate(key) {
+        var arr = key.split('-');
+        var year = parseInt(arr[2]);
+        var month = parseInt(arr[1]);
+        var day =  parseInt(arr[0]);
+        return new Date(year, month, day,0,0,0);
+    }
+
+    //Initialize content view
+    var app = angular.module('myApp', []);
+    app.run(function ($rootScope) {
+        $rootScope.vis_content = 'add_desc';
+        $rootScope.time_content = 'start';
+        $rootScope.recur_time_content = 'start';
+        $rootScope.add_time_clicked = false;
+        $rootScope.recurring = false;
+    }).controller('myCtrl', function ($scope, $http, $window, $rootScope) {
+        if(user){
+            $scope.admin_name = user.name;
+            $scope.admin_email = user.email;
+        }
+        $scope.sendData = function () {
+            console.log('begin send data');
+            var times = [];
+            var recurred_data = false;
+            if(sel_days_map.size > 0){
+                sel_days_map.forEach(function (val, key) {
+                    if(val.length > 0){
+                        val.forEach(function (time_val) {
+                            var time = {
+                                start_time: time_val.start_date,
+                                end_time: time_val.end_date,
+                                all_day: false,
+                                answers: []
+                            };
+                            times.push(time);
+                        });
+
+                    }else{
+                        var start_time = keyToDate(key);
+                        var end_time = new Date(start_time);
+                        end_time.setDate(end_time.getDate()+1);
+                        var time = {
+                            start_time: start_time,
+                            end_time: end_time,
+                            all_day: true,
+                            answers: []
+                        };
+                        times.push(time);
+                    }
+                });
+            } else{
+                recurred_data = true;
+                sel_weekdays_map.forEach(function (val, key) {
+                    if(val.length > 0){
+                        val.forEach(function (time_val) {
+                            var time = {
+                                start_time: time_val.start_date,
+                                end_time: time_val.end_date,
+                                day_index: key,
+                                all_day: false,
+                                answers: []
+                            };
+                            times.push(time);
+                        });
+                    }
+                })
+            }
+
+
+            var survey_data = {
+                admin: {
+                    name: $scope.admin_name,
+                    email: $scope.admin_email
+                },
+                title: $scope.title,
+                recurred: recurred_data,
+                recur_start: recur_start,
+                recur_end: recur_end,
+                location: $scope.location,
+                note: $scope.note,
+                participants:[],
+                times: times
+            };
+            console.log(survey_data);
+            $http.post('/survey/create/', {data: survey_data})
+                .then(function (res) {
+                    /*called for result & error because 200 status*/
+                    console.log('Success fired!!');
+                    if (res) {
+                        console.log(res);
+                        $window.location.href = res.data.redirect;
+                    }
+                });
+        };
+
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<head>
+    <title><%= provider_info.provider_name %></title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <script src="../codebase/codebase/dhtmlxscheduler.js" type="text/javascript" charset="utf-8"></script>
+    <link rel="stylesheet" href="../codebase/codebase/dhtmlxscheduler.css" type="text/css" media="screen"
+          title="no title"
+          charset="utf-8">
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css'/>
+    <link rel='stylesheet' href='/stylesheets/provider_calendar.css'/>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+</head>
+
+<!--EJS-variable -> JS-variable-->
+<% if(provider_appointments){ %>
+<script>
+    var provider_appointments = <%- JSON.stringify(provider_appointments) %>;
+</script>
+<% } %>
+<% if(provider_info){ %>
+<script>
+    var provider_info = <%- JSON.stringify(provider_info) %> ;
+    var info = provider_info;
+</script>
+<% } %>
+
+<script type="text/javascript" charset="utf-8">
+
+    function timeToStr(hours, minutes) {
+        var hrStr = '';
+        var minStr = '';
+        if (hours < 10) {
+            hrStr = '0' + hours;
+        }
+        if (minutes < 10) {
+            minStr = '0' + minutes;
+        }
+        return hrStr + ':' + minStr;
+    }
+
+    function init() {
+
+
+        var occupied_app_array = [];
+        //User can make an appointment starting from this time, if its not occupied
+        var pos_app_start = new Date();
+        pos_app_start.setMinutes(0);
+        pos_app_start.setSeconds(0);
+        pos_app_start.setMilliseconds(0);
+        pos_app_start.setHours(pos_app_start.getHours() + provider_info.days_till_next_pos_app * 24);
+        if (provider_appointments) {
+            //Eliminate all days in the past
+            var app_needed_data = [];
+            provider_appointments.forEach(function (app) {
+                var app_start = new Date(app.start_date);
+                if (app_start.getTime() >= pos_app_start.getTime()) {
+                    app_needed_data.push(app);
+                }
+            });
+
+            occupied_app_array = app_needed_data.sort(function (a, b) {
+                return new Date(a.start_date) - new Date(b.start_date);
+            });
+        }
+        //round down time for better calculation
+        //Making appointment only possible in predefined time interval from now
+        var slot_start = pos_app_start;
+        if (slot_start.getHours() < provider_info.start_work_time
+            || slot_start.getHours() > provider_info.end_work_time) {
+            slot_start.setHours(provider_info.start_work_time);
+            slot_start.setDate(slot_start.getDate() + 1);
+        }
+
+        //Create free time-slot-array day by day
+        var free_slot_array = [];
+        var slot_range = provider_info.slot_range_in_min;
+        //Occupied appointment
+        var occ_app = null;
+        var occ_app_start = new Date();
+        var occ_app_end = new Date();
+        if (occupied_app_array.length > 0) {
+            occ_app = occupied_app_array.shift();
+            occ_app_start = new Date(occ_app.start_date);
+            occ_app_end = new Date(occ_app.end_date);
+        }
+
+        var first_pos_app_day = new Date();
+        var first_freeslot_added = false;
+        for (var i = 0; i < provider_info.pos_app_range_in_days; i++) {
+            //Weekend Check
+            if (slot_start.getDay() == 0 || slot_start.getDay() == 6) {
+                slot_start.setHours(provider_info.start_work_time);
+                slot_start.setMinutes(0);
+                slot_start.setSeconds(0);
+                slot_start.setMilliseconds(0);
+                slot_start.setDate(slot_start.getDate() + 1);
+                continue;
+            }
+            //TODO: Holliday Check
+
+
+            while (slot_start.getHours() >= provider_info.start_work_time
+            && slot_start.getHours() < provider_info.end_work_time) {
+                //Create the end of slot
+                var slot_end = new Date(slot_start);
+                slot_end.setMinutes(slot_end.getMinutes() + slot_range);
+                if (occ_app
+                    && occ_app_start.getTime() >= slot_start.getTime()
+                    && occ_app_end.getTime() <= slot_end.getTime()) {
+                    console.log('Start comparision');
+                    console.log(occ_app);
+
+                    occ_app_start = new Date(occ_app.start_date);
+                    occ_app_end = new Date(occ_app.end_date);
+
+                    if (occupied_app_array.length > 0) {
+                        occ_app = occupied_app_array.shift();
+                        occ_app_start = new Date(occ_app.start_date);
+                        occ_app_end = new Date(occ_app.end_date);
+                        console.log('Next App: ');
+                        console.log(occ_app);
+                    }
+                } else {
+                    //Create free-time clickable event
+//                    var timeLb = timeToStr(slot_start.getHours(), slot_start.getMinutes());
+                    var event = {
+                        text: ".",
+                        start_date: new Date(slot_start),
+                        end_date: new Date(slot_end)
+                    };
+                    if (!first_freeslot_added) {
+                        first_pos_app_day = new Date(slot_start);
+                        first_freeslot_added = true;
+                    }
+                    free_slot_array.push(event);
+                }
+                //Increment slot_start & end
+                slot_start = slot_end;
+            }
+            //Reset slot_start for the next day
+            slot_start.setDate(slot_start.getDate() + 1);
+            slot_start.setHours(provider_info.start_work_time);
+            slot_start.setMinutes(0);
+
+        }
+
+        //Configure event box
+        scheduler.renderEvent = function (container, ev, width, height, header_content, body_content) {
+            var container_width = container.style.width; // e.g. "105px"
+
+            // move section
+            var html = "<div class='dhx_event_move my_event_move' style='width: " + container_width + "'></div>";
+
+            // container for event contents
+            html += "<div class='my_event_body'>";
+            html += "<div class='event_date'>";
+
+            html += scheduler.templates.event_header(ev.start_date, ev.end_date, ev);
+            html += "</div><br/>";
+
+            // displaying event text
+//            html += "<span>" + scheduler.templates.event_text(ev.start_date, ev.end_date, ev) + "</span>";
+            html += "</div>";
+
+            // resize section
+            html += "<div class='dhx_event_resize my_event_resize' style='width: " + container_width + "'></div>";
+
+            container.innerHTML = html;
+            return true; // required, true - we've created custom form; false - display default one instead
+        };
+        scheduler.config.first_hour = provider_info.start_work_time;
+        scheduler.config.last_hour = provider_info.end_work_time;
+        var max_day = new Date();
+        max_day.setDate(max_day.getDate()+provider_info.pos_app_range_in_days);
+        scheduler.config.agenda_start = new Date(2012, 7, 1);
+        scheduler.config.agenda_end = new Date(2014, 7, 1);
+
+        //Initialize and load data to calendar
+        scheduler.init('scheduler_here', first_pos_app_day, "week");
+        scheduler.templates.xml_date = function (value) {
+            return new Date(value);
+        };
+        scheduler.parse(free_slot_array, 'json');
+
+        var rawEventData;
+
+        scheduler.attachEvent('onClick', function (id, event) {
+            rawEventData = scheduler.getEvent(id);
+            var scope = angular.element(document.getElementById("required_info")).scope();
+            scope.visContent = "questions";
+            scope.app_start = rawEventData.start_date;
+            scope.app_end = rawEventData.end_date;
+            scope.$apply();
+
+            console.log(event);
+        });
+    }
+
+</script>
+
+<body ng-app="myApp" onload="init();">
+<% include templates/header.ejs %>
+
+<div class="info-container" style="padding: 10px;">
+    <div>
+        <label>Provider's name: </label>
+        <span><%= provider_info.provider_name %></span>
+    </div>
+    <div>
+        <label>Provider's address: </label>
+        <span><%= provider_info.provider_address %></span>
+    </div>
+    <div>
+        <label>Provider's email: </label>
+        <span><%= provider_info.provider_email %></span>
+    </div>
+    <div>
+        <label>Provider's phone number: </label>
+        <span><%= provider_info.provider_phone_number %></span>
+    </div>
+</div>
+
+<div id="scheduler_here" class="dhx_cal_container bordered-container "  ng-show="$root.visContent ==='calendar'"
+     style='width:100%; height:75%;'>
+    <div class="dhx_cal_navline">
+        <div class="dhx_cal_prev_button">&nbsp;</div>
+        <div class="dhx_cal_next_button">&nbsp;</div>
+        <div class="dhx_cal_today_button"></div>
+        <div class="dhx_cal_date"></div>
+        <div class="dhx_cal_tab" name="day_tab" style="right:204px;"></div>
+        <div class="dhx_cal_tab" name="week_tab" style="right:140px;"></div>
+    </div>
+    <div class="dhx_cal_header">
+    </div>
+    <div class="dhx_cal_data">
+    </div>
+</div>
+
+
+<div class="form-group" ng-show="$root.visContent === 'questions' " id="required_info">
+    <div>
+        <label>Please choose a appointment type</label>
+        <select ng-model="selected_type" ng-options="x for x in types">
+        </select>
+    </div>
+    <button ng-click="visContent='personal_data' ">Next</button>
+</div>
+
+<div class="form-group" ng-show="$root.visContent === 'personal_data' ">
+    <div class="form-group">
+        <label>Name</label>
+        <input type="text" class="form-control" placeholder="Name" name="user_name"
+               ng-model="$root.user_info.user_name">
+    </div>
+    <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" class="form-control" placeholder="Phone Number" name="phoneNumber"
+               ng-model="$root.user_info.user_phone_number">
+    </div>
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" class="form-control" placeholder="Email" name="email" ng-model="$root.user_info.user_email">
+    </div>
+    <button ng-click="visContent='summary'">Next</button>
+</div>
+
+<div class="form-group" ng-show="$root.visContent === 'summary'" ng-controller="sendCtrl">
+    <h3>Appontment {{selected_type}}</h3>
+    <div id="sum_content">
+        <div>User's name: {{$root.user_info.user_name}}</div>
+        <div>User's phone number: {{$root.user_info.user_phone_number}}</div>
+        <div>User's email:{{$root.user_info.user_email}}</div>
+        <p>Time: {{$root.app_start}}</p>
+    </div>
+    <button ng-click="sendData()">Send Request</button>
+</div>
+
+
+<script>
+    //Initialize content view
+    var app = angular.module('myApp', []);
+    app.run(function ($rootScope) {
+        var user_name = '';
+        var user_email = '';
+        if(user){
+            user_name = user.name;
+            user_email = user.email;
+        }
+        console.log('After check user');
+        $rootScope.visContent = 'calendar';
+        $rootScope.user_info = {
+            user_name: user_name,
+            user_phone_number: "",
+            user_email: user_email
+        };
+        $rootScope.app_start = new Date();
+        $rootScope.app_end = new Date();
+        $rootScope.types = ['Type A', 'Type B'];
+        $rootScope.selected_type = 'Type A';
+    }).controller('sendCtrl', function ($scope, $http, $window, $rootScope) {
+        $scope.sendData = function () {
+            var url = $window.location.href;
+            var id = url.substring(url.lastIndexOf('/') + 1);
+            var app_data = {
+                appointment_name: $rootScope.selected_type,
+                user_info: $rootScope.user_info,
+                start_date: $rootScope.app_start,
+                end_date: $rootScope.app_end
+
+            };
+            console.log(app_data);
+            $http.post('/provider/public/' + id, {data: app_data})
+                .then(function (res) {
+                    /*called for result & error because 200 status*/
+                    console.log('Success fired!!');
+                    if (res) {
+                        console.log(res);
+                        $window.location.href = res.data.redirect;
+                    }
+                });
+        };
+
+    });
+</script>
+</body>
+

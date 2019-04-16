@@ -1,0 +1,12 @@
+<!--EJS-variable -> JS-variable-->
+<% if(provider_appointments){ %>
+<script>
+    var provider_appointments = <%- JSON.stringify(provider_appointments) %>;
+</script>
+<% } %>
+<% if(provider_info){ %>
+<script>
+    var provider_info = <%- JSON.stringify(provider_info) %> ;
+    var info = provider_info;
+</script>
+<% } %>

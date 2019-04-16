@@ -1,0 +1,23 @@
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+.my_event_body{
+    padding-bottom: 1px;
+    text-align: center;
+}
+
+.event_date{
+    background: #1abc9c;
+    border: solid 1px grey;
+    border-radius: 2px;
+    color: white;
+}
+
+.event_date:hover{
+    cursor: pointer;
+}
+
+
+

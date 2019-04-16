@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css'/>
+    <link rel='stylesheet' href='/stylesheets/survey_result.css'/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+    <script src="/javascripts/client_utility.js" type="text/javascript"></script>
+    <script src="/javascripts/FileSaver.js" type="text/javascript"></script>
+    <script src="/javascripts/Blob.js" type="text/javascript"></script>
+    <script src="/javascripts/ics.js" type="text/javascript"></script>
+
+</head>
+<!--EJS-variable -> JS-variable-->
+<% if(survey){ %>
+<script>
+    var user_survey = <%- JSON.stringify(survey) %>;
+</script>
+<% } %>
+
+<body>
+<% include templates/header.ejs %>
+
+<div class="center-page-content" ng-controller="myCtrl">
+    <h2><%= survey.title %></h2>
+    <h4>of <%= survey.admin.name %></h4>
+    <% if(survey.recurred && survey.recur_start && survey.recur_end){ %>
+    <h4><%= (survey.recur_start.getDate()+'.'+
+        (survey.recur_start.getMonth()+1)+'.'+
+        survey.recur_start.getFullYear()+
+        ' - '+
+        survey.recur_end.getDate()+'.'+
+        (survey.recur_end.getMonth()+1)+'.'+
+        survey.recur_end.getFullYear()) %></h4>
+    <% } %>
+    <% if(user && user.email == survey.admin.email){ %>
+    <div id="edit_div" ng-init="show_add_email = false;">
+        <div ng-click="showAddEmail()">Invite Participants</div>
+        <div ng-click="chooseFinalClicked()">Choose final option</div>
+    </div>
+    <div id="inviation" ng-show="show_add_email">
+        <p>Send invitations to</p>
+        <div>
+            <% if(user.groups.length > 0){ %>
+            <select id="group_sel" onchange="fillMailAdr()">
+                <option value="" selected="selected">Select group</option>
+                <% user.groups.forEach(function (group) { %>
+                <option value="<%= group.name %>"><%= group.name %></option>
+                <% }) %>
+            </select>
+            <% } %>
+        </div>
+        <br>
+        <div id="text_area" class="center-block">
+            <div id="added_emails"></div>
+            <input id="email_input" type="text" onkeypress="handleKeyPress(event)">
+        </div>
+        <div class="form-group">
+            <input id="save_grp_cb" type="checkbox" style="margin-left: 5px" ng-model="save_group">
+            <label>Save as group</label>
+            <br>
+            <input id="group_name" style="width: 200px" type="text" placeholder="Please enter the group's name" ng-show="save_group">
+        </div>
+
+        <button ng-click="sendMail()">Send</button>
+    </div>
+    <% } %>
+    <div id="surv_result"></div>
+    <% if(survey.final_options.length > 0){ %>
+    <button onclick="importEvents()">Add to calendar</button>
+    <% }else{ %>
+    <button  ng-click="sendData()">Done</button>
+    <% } %>
+</div>
+
+
+
+<script>
+    makeResTalbe(false);
+
+    function importEvents() {
+        var cal = ics();
+        user_survey.times.forEach(function (time) {
+            if(user_survey.final_options.includes(time._id)){
+                var start = time.start_time;
+                var end = time.end_time;
+                cal.addEvent(user_survey.title,
+                    user_survey.note,
+                    user_survey.location,
+                    start,
+                    end);
+            }
+        });
+
+        cal.download('Events');
+    }
+
+    function fillMailAdr() {
+        var grp_sel_val = document.getElementById('group_sel').value;
+        var sel_group = user.groups.find(function (ele) {
+           return ele.name == grp_sel_val;
+        });
+
+        sel_group.adresses.forEach(function (adr) {
+            addEmailDiv(adr);
+        });
+    }
+
+    function handleKeyPress(e) {
+        var code = e.keyCode || e.which;
+        var email_input = document.getElementById('email_input');
+        //Pressed space
+        if (code == '32' && !isEmptyOrSpaces(email_input.value)) {
+            addEmailDiv(email_input.value)
+            email_input.value = '';
+        }
+
+    }
+
+    function addEmailDiv(email_val) {
+        var email_div = document.createElement('div');
+        email_div.classList.add('email-div');
+
+        var email_content = document.createElement('span');
+        email_content.setAttribute('name', 'added_email');
+        email_content.innerText = email_val;
+        email_div.appendChild(email_content);
+
+        var add_priority = document.createElement('i');
+        add_priority.classList.add('arrow');
+        add_priority.classList.add('down');
+        add_priority.classList.add('border-red');
+        add_priority.setAttribute('onclick', 'showPriorList(this)');
+        email_div.appendChild(add_priority);
+
+        var exit_btn = document.createElement('button');
+        exit_btn.setAttribute('onclick', 'clearDiv(this)');
+        exit_btn.innerText = 'x';
+        email_div.appendChild(exit_btn);
+
+
+        //Create priority list for user to select
+        var priority_list = document.createElement('div');
+        priority_list.classList.add('prior-list');
+        var prior_desc = document.createElement('div');
+        prior_desc.innerText = 'Select priority';
+        prior_desc.style.borderBottom = 'solid 1px gray';
+        priority_list.appendChild(prior_desc);
+
+        var normal_div = document.createElement('div');
+        var normal_radio = document.createElement('input');
+        normal_radio.type = 'radio';
+        normal_radio.value = 'normal';
+        normal_radio.name = 'priority' + toStrWithoutSpaces(email_input.value);
+        normal_radio.setAttribute('checked', 'checked');
+        var normal_lb = document.createElement('label');
+        normal_lb.innerText = 'normal';
+        normal_div.appendChild(normal_radio);
+        normal_div.appendChild(normal_lb);
+        priority_list.appendChild(normal_div);
+
+        var important_div = document.createElement('div');
+        var important_radio = document.createElement('input');
+        important_radio.type = 'radio';
+        important_radio.value = 'important';
+        important_radio.name = 'priority' + email_input.value;
+        var important_lb = document.createElement('label');
+        important_lb.innerText = 'important';
+        important_div.appendChild(important_radio);
+        important_div.appendChild(important_lb);
+        priority_list.appendChild(important_div);
+
+        email_div.appendChild(priority_list);
+
+
+        document.getElementById('added_emails').appendChild(email_div);
+    }
+
+    function showPriorList(ele) {
+        var priority_list = ele.parentElement.getElementsByClassName('prior-list')[0];
+        if (priority_list.style.display == 'block') {
+            priority_list.style.display = 'none';
+        } else {
+            priority_list.style.display = 'block';
+        }
+    }
+
+    function clearDiv(ele) {
+        var div = ele.parentElement;
+        div.remove();
+    }
+
+    function makeResTalbe(choose_final) {
+        var table = document.createElement('table');
+        table.classList.add('table');
+        table.classList.add('table-bordered');
+        var times = user_survey.times;
+        var recurred = user_survey.recurred;
+        var participants = user_survey.participants;
+        var final_options = user_survey.final_options;
+        console.log(user_survey);
+
+
+        //Make table header
+        table.appendChild(makeTableHeader(times, recurred));
+
+        //Make counting row
+        table.appendChild(makeCountRow(times, participants));
+
+        if(!choose_final){
+            //Make participants rows
+            participants.forEach(function (pa) {
+                table.appendChild(makeParticipantRow(times, pa));
+            });
+            if(final_options.length > 0){
+                //Make final-options-row
+                table.appendChild(makeFinalRow(times, final_options));
+            }else{
+                //Make edit-row
+                table.appendChild(makeEditRow(times));
+            }
+
+        }else{
+            //Make row to choose final options
+            table.appendChild(makeFinalOptRow(times));
+        }
+
+
+        var wrap_containter = document.createElement('div');
+        wrap_containter.classList.add('wrap-content');
+        wrap_containter.appendChild(table)
+        document.getElementById('surv_result').innerHTML = wrap_containter.outerHTML;
+
+    }
+
+    function makeTableHeader(times_arr, recurred) {
+        var tr_head = document.createElement('tr');
+        var empty_th = document.createElement('th');
+//        empty_th.classList.add('first-column');
+        tr_head.appendChild(empty_th);
+
+        times_arr.forEach(function (time) {
+            var th = document.createElement('th');
+            th.classList.add('fixed-th');
+
+            var start_time = new Date(time.start_time);
+            var end_time = new Date(time.end_time);
+            var weekday_text = document.createElement('div');
+            if(recurred){
+                weekday_text.innerText = getDayStr(time.day_index);
+            }else{
+                var date_text = document.createElement('div');
+
+                date_text.innerText = start_time.getDate() + '.' + (start_time.getMonth() + 1);
+                th.appendChild(date_text);
+
+                weekday_text.innerText = getDayStr(start_time.getDay());
+            }
+
+            console.log('Before add time');
+            if (!(time.all_day)) {
+                var start_text = document.createElement('div');
+                start_text.innerText = addZero(start_time.getHours()) + ':' + addZero(start_time.getMinutes());
+                var end_text = document.createElement('div');
+                end_text.innerText = addZero(end_time.getHours()) + ':' + addZero(end_time.getMinutes());
+                th.appendChild(start_text);
+                var minus = document.createElement('div');
+                minus.innerText = '-';
+                th.appendChild(minus);
+                th.appendChild(end_text);
+            }
+            console.log('After add time');
+
+            th.appendChild(weekday_text);
+            tr_head.appendChild(th);
+        });
+        return tr_head;
+    }
+
+
+    function makeEditRow(times_arr) {
+        var ed_tr = document.createElement('tr');
+        var first_td = document.createElement('td');
+        var name_input = document.createElement('input');
+        name_input.setAttribute('ng-model', 'name_input');
+        name_input.placeholder = 'Name';
+        first_td.appendChild(name_input)
+        ed_tr.appendChild(first_td);
+        times_arr.forEach(function (time) {
+            var td = document.createElement('td');
+            var cb = document.createElement('input');
+            cb.name = 'answer_cb';
+            cb.type = 'checkbox';
+            td.appendChild(cb);
+            ed_tr.appendChild(td);
+        });
+        return ed_tr;
+    }
+
+    function makeFinalOptRow(times_arr) {
+        var final_tr = document.createElement('tr');
+        var first_td = document.createElement('td');
+        var final_lb = document.createElement('div');
+        final_lb.innerText = 'Final options';
+        first_td.appendChild(final_lb)
+        final_tr.appendChild(first_td);
+        for(var i = 0; i < times_arr.length; i++){
+            var td = document.createElement('td');
+            var cb = document.createElement('input');
+            cb.name = 'final_cb';
+            cb.type = 'checkbox';
+            td.appendChild(cb);
+            final_tr.appendChild(td);
+        }
+        return final_tr;
+    }
+
+    function makeParticipantRow(times_arr, participant){
+        var pa_tr = document.createElement('tr');
+        var name_td = document.createElement('td');
+        name_td.classList.add('first-column');
+        name_td.innerText = participant.user_name;
+        if(participant.priority == 'important'){
+            name_td.innerText += '**';
+        }
+        pa_tr.appendChild(name_td);
+        var time_ids = participant.answers;
+        times_arr.forEach(function (time) {
+            var td = document.createElement('td');
+            if (time_ids.includes(time._id)) {
+                td.innerText = 'Yes';
+            } else {
+                td.innerText = 'No';
+            }
+            pa_tr.appendChild(td);
+        });
+        return pa_tr;
+    }
+
+    function makeCountRow(times_arr, participants) {
+        var count_tr = document.createElement('tr');
+        var pa_number_td = document.createElement('td');
+        pa_number_td.innerText = user_survey.participants.length + ' participants';
+        count_tr.appendChild(pa_number_td);
+        times_arr.forEach(function (time) {
+            var agree_count = 0;
+            var count_td = document.createElement('td');
+            participants.forEach(function (pa) {
+                var time_ids = pa.answers;
+                if (time_ids.includes(time._id)) {
+                    agree_count++;
+                }
+            });
+            count_td.innerText = '(' + agree_count + ')';
+            count_tr.appendChild(count_td);
+        });
+        return count_tr;
+    }
+
+    function makeFinalRow(times_arr, final_option_arr){
+        var final_tr = document.createElement('tr');
+        var name_td = document.createElement('td');
+        name_td.classList.add('first-column');
+        name_td.innerText = 'Final Options';
+        final_tr.appendChild(name_td);
+        times_arr.forEach(function (time) {
+            var td = document.createElement('td');
+            if (final_option_arr.includes(time._id)) {
+                var checkmark = document.createElement('img');
+                checkmark.setAttribute('src', '../images/checkmark.png');
+                td.appendChild(checkmark);
+            }
+            final_tr.appendChild(td);
+        });
+        return final_tr;
+    }
+
+
+</script>
+<script>
+    //Initialize content view
+    var app = angular.module('myApp', []);
+    app.run(function ($rootScope) {
+        $rootScope.vis_content = 'add_desc';
+        $rootScope.time_content = 'start';
+        $rootScope.add_time_clicked = false;
+        $rootScope.choose_final = false;
+        $rootScope.save_group = false;
+        $rootScope.final_options = user_survey.final_options;
+    }).controller('myCtrl', function ($scope, $http, $window, $rootScope) {
+        $scope.showAddEmail = function () {
+          if(!$scope.show_add_email){
+              $scope.show_add_email = true;
+          } else {
+              $scope.show_add_email = false;
+          }
+        };
+
+        $scope.addParticipant = function () {
+            console.log('begin add par');
+            var answer_cbs = document.getElementsByName('answer_cb');
+            var user_name = $scope.name_input;
+            var time_ids_data = [];
+            var times = user_survey.times;
+            for (var i = 0; i < times.length; i++) {
+                if (answer_cbs[i].checked) {
+                    times[i].answers.push(user_name);
+                    time_ids_data.push(times[i]._id);
+                }
+            }
+
+            var answer_data = {
+                survey_id: user_survey._id,
+                user_name: user_name,
+                time_ids: time_ids_data
+            }
+            $http.post(window.location.href, {data: answer_data})
+                .then(function (res) {
+                    /*called for result & error because 200 status*/
+                    if (res) {
+                        $window.location.href = res.data.redirect;
+                    }
+                });
+        };
+
+        $scope.chooseFinalClicked = function () {
+            $rootScope.choose_final = true;
+            makeResTalbe(true);
+        };
+
+
+        $scope.setFinalOptions = function () {
+            var final_cbs = document.getElementsByName('final_cb');
+            var time_ids_data = [];
+            var times = user_survey.times;
+            console.log('before for');
+            for (var i = 0; i < times.length; i++) {
+                if (final_cbs[i].checked) {
+                    time_ids_data.push(times[i]._id);
+                }
+            }
+
+            var final_opt_data = {
+                survey_id: user_survey._id,
+                final_options: time_ids_data
+            }
+            console.log(final_opt_data);
+            $http.post('/survey/set_final_options/' + user_survey._id, {data: final_opt_data})
+                .then(function (res) {
+                    /*called for result & error because 200 status*/
+                    if (res) {
+                        $window.location.href = res.data.redirect;
+                    }
+                });
+        };
+
+        $scope.sendData = function () {
+            console.log($rootScope.choose_final);
+            if($rootScope.choose_final){
+                $scope.setFinalOptions();
+            }else {
+                $scope.addParticipant();
+            }
+        };
+
+
+
+        $scope.sendMail = function () {
+            var emails = document.getElementsByName('added_email');
+            console.log(emails);
+            var participants_arr = [];
+            var adr_arr = [];
+            emails.forEach(function (e) {
+                var mail_addr = toStrWithoutSpaces(e.innerText);
+                var priorities = document.getElementsByName('priority'+mail_addr);
+                var participant = null;
+                priorities.forEach(function (radio) {
+                    console.log('enter foreach');
+                    if(radio.checked){
+                        participant = {
+                            email: mail_addr,
+                            priority: radio.value
+                        };
+                        console.log(radio.value);
+                    }
+                });
+                participants_arr.push(participant);
+                adr_arr.push(mail_addr);
+            });
+
+            var group_data = null;
+            if(document.getElementById('save_grp_cb').checked){
+                group_data = {
+                    name: document.getElementById('group_name').value,
+                    adresses: adr_arr
+                };
+            }
+            var email_data = {
+                participants_data: participants_arr,
+                url: window.location.href,
+                admin: user_survey.admin,
+                group_data: group_data
+            };
+            console.log(email_data);
+            $http.post('/survey/send_email/' + user_survey._id, {data: email_data})
+                .then(function (res) {
+                    /*called for result & error because 200 status*/
+                    if (res) {
+//                        $window.location.href = res.data.redirect;
+                        var message = res.data.message;
+                        var msg = document.getElementById(message.msg_type);
+                        msg.getElementsByTagName('span')[0].innerText = message.text;
+                        msg.style.display = 'block';
+                        console.log(res);
+                    }
+                });
+        };
+
+    });
+</script>
+</body>
+</html>

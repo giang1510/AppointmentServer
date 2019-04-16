@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html ng-app>
+<head>
+    <title>Search results: <%= search_text%></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css' />
+</head>
+<body>
+<% include templates/header.ejs%>
+<h1>Search results: <%= search_text%></h1>
+<div>
+    <% if(users.length < 1){ %>
+        <p>No such result found!</p>
+    <% }else{ %>
+        <ul>
+            <% users.forEach(function (user) { %>
+                <li>
+                    <a href="<%= "/provider/"+user._id%>"+ ><%= user.name%></a>
+                </li>
+            <% }); %>
+        </ul>
+    <% } %>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+</body>
+</html>

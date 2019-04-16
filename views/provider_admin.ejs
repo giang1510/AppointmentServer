@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css'/>
+    <link rel='stylesheet' href='/stylesheets/provider_admin.css'/>
+</head>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+<% include templates/ejsToNormalJsVar.ejs %>
+<%
+function timeFormat(time) {
+    var timeStr = '';
+
+    if (time.getHours() < 10) {
+        timeStr += '0';
+    }
+
+    timeStr += time.getHours() + ':';
+    if (time.getMinutes() < 10) {
+        timeStr += '0'
+    }
+    timeStr += time.getMinutes();
+
+    return timeStr;
+}
+function timeSlotStr(start, end) {
+    return timeFormat(start) + ' - ' + timeFormat(end);
+}
+%>
+<body>
+
+<% include templates/header.ejs %>
+
+<h3>Provider <%= user.provider_info.provider_name %>'s Calendar</h3>
+<div id="main_content" class="table-responsive" ng-controller="myCtrl">
+    <!--<p>{{provider_appointments}}</p>-->
+    <div class="table_func">
+        <div id="cal_action">
+            <select ng-model="selected_action" ng-options="x for x in actions">
+            </select>
+            <button ng-click="performAction()">Perform Action</button>
+        </div>
+        <div id="cal_btns">
+            <button ng-click="previousClicked()">Previous</button>
+            <button ng-click="nextClicked()">Next</button>
+            <button onclick="testClicked()">Test</button>
+        </div>
+        <div id="cal_cur_date">
+            {{cur_day.getDate()+'-'+(cur_day.getMonth()+1)+'-'+cur_day.getFullYear()}}
+        </div>
+    </div>
+
+    <table id="day_table" class="table table-bordered">
+
+        <tr>
+            <th style="width: 20px"><input type="checkbox" name="allCB" onchange="checkAll(this)"></th>
+            <th style="width: 100px">Appointment</th>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Notification</th>
+            <th style="width: 30px">Edit</th>
+        </tr>
+
+        <%
+        var slot_range = provider_info.slot_range_in_min;
+        var start_work = provider_info.start_work_time;
+        var end_work = provider_info.end_work_time;
+        var start = new Date();
+        start.setHours(start_work);
+        start.setMinutes(0);
+        start.setSeconds(0);
+        start.setMilliseconds(0);
+        var end = new Date(start);
+        end.setMinutes(end.getMinutes() + slot_range);
+
+        var occ_app_array = [];
+        var occ_app = null;
+        if (provider_appointments.length > 0) {
+            occ_app_array = provider_appointments.sort(function (a, b) {
+                return new Date(b.start_date) - new Date(a.start_date);
+            });
+//            occ_app =
+        }
+
+        for(var i = 0; start.getHours() < end_work; i++){
+        %>
+        <tr>
+            <% for(var j = 0; j < 6; j++){ %>
+            <td>
+                <% if(j == 0){ %>
+                <input type="checkbox" name="actionCB">
+                <% }else if(j == 1){ %>
+                <%= timeSlotStr(start, end) %>
+                <% }else if(j == 5){ %>
+                <img class="edit_icon"
+                     onclick=<%= "showEditWindow(" + start.getHours() + "," + start.getMinutes() + ",this)" %>
+                     src="../images/edit_icon.png">
+                <% }else { %>
+                <div name="dataCell"></div>
+                <% } %>
+            </td>
+            <%
+            }
+                start.setMinutes(start.getMinutes() + slot_range);
+                end.setMinutes(end.getMinutes() + slot_range);
+            %>
+        </tr>
+        <% } %>
+    </table>
+</div>
+
+
+<script>
+    //Column indexes
+    const COL_CB = 0;
+    const COL_APP = 1;
+    const COL_TYPE = 2;
+    const COL_NAME = 3;
+    const COL_NOTE = 4;
+    const COL_EDIT = 5;
+
+    var edit_window;
+
+    function testClicked() {
+        var t = document.getElementById("day_table"),
+            d = t.getElementsByTagName("tr")[3],
+            r = d.getElementsByTagName("td")[COL_NAME];
+        r.innerHTML = "test clicked!!";
+    }
+
+    function dateToKey(d) {
+        return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    }
+
+    function timeToRowIndex(t) {
+        var hour = t.getHours() - provider_info.start_work_time;
+        var min = t.getMinutes();
+        var range = provider_info.slot_range_in_min;
+
+        console.log(t.getHours());
+        console.log(min);
+
+        return hour * (60 / range) + (min / range);
+    }
+
+    //Appointments-Array to map
+    apps_day_map = new Map();
+    if (provider_appointments && provider_appointments.length > 0) {
+        provider_appointments.forEach(function (app) {
+            var start = new Date(app.start_date);
+            var key = dateToKey(start);
+            if (!apps_day_map.has(key)) {
+                apps_day_map.set(key, [])
+            }
+            var times_arr = apps_day_map.get(key);
+            times_arr.push(app);
+        });
+    }
+
+    function initCells() {
+        var datacells = document.getElementsByName("dataCell");
+        for (var i = 0; i < datacells.length; i++) {
+            datacells[i].innerHTML = "&nbsp;";
+        }
+    }
+
+     function showEditWindow(start_hours, start_min, ele) {
+         console.log('enter edit window');
+         var scope = angular.element(document.getElementById('main_content')).scope();
+         var cur_day = scope.cur_day;
+         console.log(cur_day);
+         var path = "";
+         if(ele.id){
+             console.log(ele.id);
+             path = "/provider/admin/entry_edit/"+ele.id;
+         }else{
+             var edit_date = new Date(cur_day.getFullYear(), cur_day.getMonth(), cur_day.getDate());
+             edit_date.setHours(start_hours);
+             edit_date.setMinutes(start_min);
+             path = "/provider/admin/entry_edit/date/" + edit_date;
+         }
+         edit_window = window.open(path, "_blank", "width=700,height=650");
+    }
+
+
+
+    //Initialize content view
+    var app = angular.module('myApp', []);
+    app.run(function ($rootScope) {
+        $rootScope.actions = ['Refresh', 'Delete'];
+        $rootScope.selected_action = 'Refresh';
+    }).controller('myCtrl', function ($scope, $http) {
+        $scope.cur_day = new Date();
+        $scope.provider_info = provider_info;
+        $scope.provider_appointments = provider_appointments;
+
+
+
+        $scope.performAction = function () {
+            if ($scope.selected_action == 'Refresh') {
+                location.reload();
+            } else {
+                var action_cbs = document.getElementsByName('actionCB');
+                var time_ids = [];
+                action_cbs.forEach(function (cb) {
+                    if (cb.checked) {
+                        if (cb.value) {
+                            time_ids.push(cb.value);
+                        }
+                    }
+                });
+                console.log(time_ids);
+                $http.post('/provider/admin/delete', {data: {time_ids: time_ids}})
+                    .then(function (res) {
+                        console.log('Success fired!!');
+                        if (res) {
+                            console.log(res);
+                            $window.location.href = res.data.redirect;
+                        }
+                    });
+            }
+        };
+
+        $scope.refreshTable = function () {
+            initCells();
+            var key = dateToKey($scope.cur_day);
+//            console.log('Refresh with key: '+key);
+            if (apps_day_map.has(key)) {
+                var times_arr = apps_day_map.get(key);
+                for (var i = 0; i < times_arr.length; i++) {
+                    var time = times_arr[i];
+                    var rowIndex = timeToRowIndex(new Date(time.end_date));
+                    var tb = document.getElementById("day_table");
+                    var tr = tb.getElementsByTagName("tr")[rowIndex];
+
+                    //Display data from an appointment
+                    if (time.user_info.user_name) {
+                        var name_td = tr.getElementsByTagName("td")[COL_NAME];
+                        var name_cell = name_td.getElementsByTagName("div")[0];
+                        name_cell.innerHTML = time.user_info.user_name;
+                    }
+                    if (time.appointment_name) {
+                        var type_td = tr.getElementsByTagName("td")[COL_TYPE];
+                        var type_cell = type_td.getElementsByTagName("div")[0];
+                        type_cell.innerHTML = time.appointment_name;
+                    }
+                    if (time.notification) {
+                        var note_td = tr.getElementsByTagName("td")[COL_NOTE];
+                        var note_cell = note_td.getElementsByTagName("div")[0];
+                        note_cell.innerHTML = time.notification;
+                    }
+
+                    //Pass app id to checkbox and edit button
+                    var cb = tr.getElementsByTagName('td')[COL_CB].getElementsByTagName('input')[0];
+                    cb.value = time._id;
+
+                    var edit_btn = tr.getElementsByTagName('td')[COL_EDIT].getElementsByTagName('img')[0];
+                    edit_btn.id = time._id;
+                }
+            }
+
+        };
+        $scope.refreshTable();
+
+        $scope.previousClicked = function () {
+            $scope.cur_day.setDate($scope.cur_day.getDate() - 1)
+            $scope.refreshTable();
+        };
+        $scope.nextClicked = function () {
+            $scope.cur_day.setDate($scope.cur_day.getDate() + 1)
+            $scope.refreshTable();
+        };
+    });
+
+    function checkAll(ele) {
+        var checkboxes = document.getElementsByName('actionCB');
+        if (ele.checked) {
+            for (var i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].type == 'checkbox') {
+                    checkboxes[i].checked = true;
+                }
+            }
+        } else {
+            for (var i = 0; i < checkboxes.length; i++) {
+                console.log(i)
+                if (checkboxes[i].type == 'checkbox') {
+                    checkboxes[i].checked = false;
+                }
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,42 @@
+#cal_action, #cal_btns{
+    display: inline-block;
+    width: 49.5%;
+    margin-bottom: 10px;
+}
+
+#cal_btns{
+    text-align: right;
+    margin-left: 10px;
+}
+
+#cal_action{
+    text-align: left;
+}
+
+#cal_cur_date{
+    position: absolute;
+    left: 47%;
+    top:5px;
+}
+
+
+.table_func{
+    position: relative;
+}
+
+h3{
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.edit_icon{
+    width: 10px;
+    height: 10px;
+}
+.edit_icon:hover{
+    cursor: pointer;
+    opacity: 0.5;
+}
+.edit_td{
+    width: 30px;
+}

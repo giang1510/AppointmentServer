@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+<head>
+    <title><%= user.name %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <link rel='stylesheet' href='/stylesheets/bootstrap.css'/>
+    <link rel='stylesheet' href='/stylesheets/user_profile.css'/>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.6/angular.min.js"></script>
+    <script src="/javascripts/FileSaver.js" type="text/javascript"></script>
+    <script src="/javascripts/Blob.js" type="text/javascript"></script>
+    <script src="/javascripts/ics.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+    // Demo
+    console.log('Start');
+    cal = ics();
+    cal.addEvent('Christmas', 'Christian holiday celebrating the birth of Jesus Christ', 'Bethlehem', '12/25/2013', '12/25/2013');
+    cal.addEvent('Christmas', 'Christian holiday celebrating the birth of Jesus Christ', 'Bethlehem', '12/25/2014', '12/25/2014');
+    cal.addEvent('New Years', 'Watch the ball drop!', 'New York', '01/01/2015', '01/01/2015');
+    cal.addEvent('New Years', 'Watch the ball drop!', 'New York', '01/01/2016', '01/01/2016');
+    cal_single = ics();
+    var start = new Date();
+    start.setHours(0);
+    start.setMinutes(0);
+    start.setSeconds(0);
+    start.setMilliseconds(0);
+    var end = new Date(start);
+    end.setDate(end.getDate()+1);
+    cal_single.addEvent('Best Day', 'This is the best day to demonstrate a single event.', 'New York', start, end);
+    // You can use this for easy debugging
+    makelogs = function(obj) {
+        console.log('Events Array');
+        console.log('=================');
+        console.log(obj.events());
+        console.log('Calendar With Header');
+        console.log('=================');
+        console.log(obj.calendar());
+    }
+    console.log('end');
+</script>
+
+<%
+function timeFormat(time) {
+    var timeStr = '';
+
+    if (time.getHours() < 10) {
+        timeStr += '0';
+    }
+
+    timeStr += time.getHours() + ':';
+    if (time.getMinutes() < 10) {
+        timeStr += '0'
+    }
+    timeStr += time.getMinutes();
+
+    return timeStr;
+}
+%>
+<body>
+<% include templates/header.ejs %>
+
+<h1><%= user.name %>'s Profile</h1>
+<div>
+    <a href="/provider/download">Download</a>
+</div>
+<!--<div class="wrap">-->
+    <!--<button onclick="cal_single.download('Awesome Day')">Single Event</button>-->
+    <!--<br>-->
+    <!--<a href="#" onclick="cal.download('Holidays')">Multiple Events</a>-->
+    <!--<br>-->
+    <!--<a href="#" onclick="makelogs(cal)">Console Output</a>-->
+<!--</div>-->
+<div class="info-container">
+    <table class="table">
+        <tbody>
+        <tr>
+            <td>Name</td>
+            <td><%= user.name %></td>
+            <td><a href="#">Edit</a></td>
+        </tr>
+        <tr>
+            <td>Email</td>
+            <td><%= user.email %></td>
+            <td><a href="#">Edit</a></td>
+        </tr>
+        <tr>
+            <td>Username</td>
+            <td><%= user.username %></td>
+            <td><a href="#">Edit</a></td>
+        </tr>
+        <tr>
+            <td>Is Provider</td>
+            <td>
+                <% if(user.is_provider){ %>
+                Yes
+                <% }else {%>
+                No
+                <% } %>
+            </td>
+            <td><a href="#">Edit</a></td>
+        </tr>
+
+
+        </tbody>
+    </table>
+</div>
+
+<div id="user_content" class="flex-container" ng-controller="myCtrl">
+    <div id="app_content" class="list-group">
+        <div class="list_caption">Appointment List</div>
+        <table class="table ">
+            <tr>
+                <th>Name</th>
+                <th>Provider</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th></th>
+            </tr>
+            <% user.my_appointments.forEach(function (app) { %>
+            <tr >
+                <td ><%= app.appointment_name %></td>
+                <td>
+                    <%= app.provider_name%>
+                </td>
+                <td>
+                    <%= app.start_date.getDate()+'.'
+                    +(app.start_date.getMonth()+1)+'.'
+                    +app.start_date.getFullYear()%>
+                </td>
+                <td>
+                    <%= timeFormat(app.start_date)+'-'
+                    +timeFormat(app.end_date) %>
+                </td>
+                <td>
+                    <button class="btn-link " ng-click=<%= 'cancelApp("'+app.provider_id+'/appointment/'+app.appointment_id+'","'+app._id+'")' %>>Cancel</button>
+                </td>
+
+            </tr>
+            <%}) %>
+        </table>
+
+    </div>
+    <div id="surv_content" class="list-group">
+        <div class="list_caption">Survey List</div>
+        <% user.surveys.forEach(function (surv) { %>
+            <div class="list-group-item">
+                <a href=<%= "/survey/"+surv.survey_id %>><%= surv.survey_name %></a>
+            </div>
+        <%}) %>
+    </div>
+</div>
+
+<script>
+    //Initialize content view
+    var app = angular.module('myApp', []);
+    app.run(function ($rootScope) {
+
+    }).controller('myCtrl', function ($scope, $http, $window, $rootScope) {
+        $scope.cancelApp = function (rel_path, ele_id) {
+
+            $http.post('/provider/' + rel_path, {data: {ele_id: ele_id}})
+                .then(function (res) {
+                    /*called for result & error because 200 status*/
+                    console.log('Success fired!!');
+                    if (res) {
+                        console.log(res);
+                        $window.location.href = res.data.redirect;
+                    }
+                });
+        };
+
+    });
+</script>
+</body>
+</html>

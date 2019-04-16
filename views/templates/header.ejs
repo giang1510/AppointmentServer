@@ -1,0 +1,103 @@
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="/">ManaApp</a>
+        </div>
+        <ul class="nav navbar-nav navbar-right hover-gray">
+            <li><a href="/survey/create">Create Survey</a></li>
+            <% if(!user){ %>
+            <li><a href="/users/register">Register</a></li>
+            <li><a href="/users/login">Login</a></li>
+            <% } %>
+            <% if(user){  %>
+
+            <li>
+                <div id="user_dropdown" onclick="showDropDownList()">
+                    <img src="../images/user_icon.png">
+                    <span><%= user.username %></span>
+                    <i class="arrow down"></i>
+                    <div id="dropdown_list" style="display: none;">
+                        <div><a href="/users/profile">Profile</a></div>
+                        <% if(user.is_provider){ %>
+                        <div><a href="/provider/admin">Provider</a></div>
+                        <% } %>
+                        <div><a href="/users/logout">Logout</a></div>
+                    </div>
+                </div>
+            </li>
+            <% } %>
+            <!--<button style="float: right;">Create Survey</button>-->
+        </ul>
+
+    </div>
+</nav>
+
+
+<div class="row">
+    <div class="col-lg-12">
+        <% if(success_msg.length > 0){ %>
+        <div class="alert alert-success"><%= success_msg %></div>
+        <% } %>
+
+        <% if(error_msg.length > 0){ %>
+        <div class="alert alert-danger"><%= error_msg %></div>
+        <% } %>
+
+        <% if(error.length > 0){ %>
+        <div class="alert alert-danger"><%= error %></div>
+        <% } %>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-12">
+        <div class="alert alert-success" id="success_msg" style="display: none;">
+            <span></span>
+            <button class="alert-success" style="float: right;" onclick="removeMsgDiv('success_msg')">x</button>
+        </div>
+
+        <div class="alert alert-danger" id="error_msg" style="display: none;">
+            <span></span>
+            <button class="alert-danger" style="float: right;" onclick="removeMsgDiv('error_msg')">x</button>
+        </div>
+
+        <div class="alert alert-danger" id="error" style="display: none;">
+            <span></span>
+            <button class="alert-danger" style="float: right;" onclick="removeMsgDiv('error')">x</button>
+        </div>
+    </div>
+</div>
+<script>
+    function removeMsgDiv(id) {
+        $(document).ready(function () {
+            $("#" + id).remove();
+        });
+    }
+
+    //Create user's drop-down list
+    function showDropDownList() {
+        var list = document.getElementById('dropdown_list');
+        var dropdown_btn = document.getElementById('user_dropdown');
+        var dropdown_icon = dropdown_btn.getElementsByTagName('i')[0];
+        if(list.style.display == 'none'){
+            list.style.display = 'block';
+            dropdown_icon.classList.remove('down');
+            dropdown_icon.classList.add('up');
+            dropdown_icon.style.marginBottom = '0px';
+        }else {
+            list.style.display = 'none';
+            dropdown_icon.classList.remove('up');
+            dropdown_icon.classList.add('down');
+        }
+
+    }
+</script>
+
+<script>
+    var user = null;
+</script>
+<% if(user){ %>
+<script>
+    user = <%- JSON.stringify(user) %>;
+</script>
+<% } %>
+

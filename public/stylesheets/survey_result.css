@@ -1,0 +1,122 @@
+h2{
+    text-align: center;
+}
+
+td, th{
+    min-width: 70px;
+    text-align: center;
+}
+.fixed-th{
+    width: 100px;
+}
+
+.wrap-content{
+    display: inline-block;
+}
+
+.first-column{
+    width: 200px;
+}
+
+
+#surv_result{
+    overflow-x: auto;
+    text-align: center;
+}
+
+#inviation{
+    margin: 5px;
+    padding: 5px;
+}
+
+#text_area{
+    width: 500px;
+    height: 100px;
+    border: solid 1px darkgray;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    text-align: start;
+    padding: 3px;
+    overflow: auto;
+}
+#text_area input{
+    border: none;
+    display: inline-block;
+}
+#text_area button{
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: solid 1px white;
+    background: palevioletred;
+    width: 2px;
+}
+#added_emails{
+    display: inline-block;
+}
+
+.email-div {
+    background: palevioletred;
+    color: white;
+    display: inline-block;
+    margin: 2px;
+    padding: 2px;
+    border-radius: 2px;
+    position: relative;
+}
+.email-div i{
+    margin-right: 4px;
+}
+.email-div i:hover{
+    cursor: pointer;
+}
+.email-div span{
+    margin-right: 4px;
+}
+.email-div button{
+    -webkit-transition-duration: 0.1s; /* Safari */
+    transition-duration: 0.1s;
+}
+.email-div button:hover{
+    background: mediumvioletred;
+}
+
+.border-red{
+    border-color: white;
+}
+
+.prior-list{
+    position: absolute;
+    left: 0px;
+    z-index: 1;
+    width: 100px;
+    background: white;
+    border: solid 1px lightgray;
+    color: black;
+    display: none;
+}
+.prior-list > div, label{
+    padding-left: 3px;
+}
+
+#edit_div{
+    text-align: center;
+    height: 40px;
+    margin-bottom: 10px;
+}
+#edit_div > div{
+    margin-top: 8px;
+    padding: 2px;
+    border-radius: 2px;
+    display: inline-block;
+    background: #1abc9c;
+    color: white;
+}
+#edit_div > div:hover{
+    cursor: pointer;
+}
+
+img{
+    width: 10px;
+    height: 10px;
+}
