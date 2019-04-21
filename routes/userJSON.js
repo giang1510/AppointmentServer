@@ -114,8 +114,18 @@ router.post('/login', function(req, res, next ){
     // console.log(req.body);
     passport.authenticate('local', function(err, user, info) {
         if (err) { return next(err) }
-        if (!user) { return res.json( { message: info.message }) }
-        res.send("Login succeed!!");
+        let response = {
+            success: true,
+            message: ""
+        };
+        if (!user) {
+            response.success = false;
+            response.message = info.message;
+            return res.json(response);
+        }
+
+        response.message = "Login succeed!!";
+        return res.json(response);
     })(req, res, next);
 });
 //Logout
