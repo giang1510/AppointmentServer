@@ -130,7 +130,8 @@ module.exports.addAppToProvider = function (id, app, callback) {
         if(err) throw err;
         if(provider){
             console.log(app);
-            provider.provider_appointments.push(app);
+            //provider.provider_appointments.push(app);
+            provider.provider_appointments = provider.provider_appointments.concat([app]);
             provider.save(callback);
         }
     });
