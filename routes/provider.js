@@ -71,13 +71,20 @@ router.get('/JSON/:_id', function (req, res, next) {
 
 router.post('/JSON/public/:_id', function (req, res) {
     var app_data = req.body;
+    var result = {
+        success: false,
+        message: ""
+    };
     console.log(app_data);
     User.addAppToProvider(req.params._id, app_data, function (err, provider) {
-        if (err) throw err;
+        if (err){
+            result.message = err;
+            res.json(result);
+            throw err;
+        }
         console.log(provider);
         var prov_apps = provider.provider_appointments;
         var new_app = prov_apps[prov_apps.length - 1];
-        if (err) res.send(err);
 
         ICS_Parser.createAppICSFile(app_data, provider.provider_info, function (content) {
             var url = res.locals.baseURL + '/provider/' + req.params._id + '/appointment/' + new_app._id;
@@ -99,7 +106,8 @@ router.post('/JSON/public/:_id', function (req, res) {
             });
         });
 
-        res.send("Succesful");
+        result.success = true;
+        res.json(result);
     });
 });
 
