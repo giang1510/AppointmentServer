@@ -8,7 +8,7 @@
   "scripts": {
     "comment": "start: node ./bin/www",
     "build": "npm install && rimraf ./build && tsc",
-    "start": "node build/index.js "
+    "start": "node app.js "
   },
   "dependencies": {
     "angular": "^1.6.6",
