@@ -15,8 +15,17 @@ var mongo = require('mongodb');
 var cors = require('cors');
 
 //db setup
-// mongoose.connect('mongodb://localhost/hockey');
-mongoose.connect('mongodb://phiseoxhd:10101963@ds042527.mlab.com:42527/hockey');
+try {
+  // Connect to the MongoDB cluster
+   mongoose.connect(
+    "mongodb+srv://phiseoxhd:10101963@hockey.1fdr90m.mongodb.net/users?retryWrites=true&w=majority",
+    { useNewUrlParser: false, useUnifiedTopology: true },
+    () => console.log(" Mongoose is connected")
+  );
+
+} catch (e) {
+  console.log("could not connect");
+}
 var db = mongoose.connection;
 
 
@@ -134,3 +143,4 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+app.listen(3000, () => console.log('Example app is listening on port 3000.'));
